@@ -1,207 +1,70 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
+
+import 'bucket_service.dart';
+import 'pages/mili_daily_page.dart';
+import 'pages/mili_home_page.dart';
+import 'pages/mili_weekly_page.dart';
 
 void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  runApp(MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (context) => BucketService()),
+    ],
+    child: MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: HomePage(),
-    );
-  }
+      home: Mili(),
+    ),
+  ));
 }
 
-/// 버킷 클래스
-class Bucket {
-  String job; // 할 일
-  bool isDone; // 완료 여부
+Color miliPrimaryColor = Color.fromARGB(255, 75, 168, 245);
 
-  Bucket(this.job, this.isDone); // 생성자
-}
-
-/// 홈 페이지
-class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+class Mili extends StatefulWidget {
+  const Mili({Key? key}) : super(key: key);
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<Mili> createState() => _MiliState();
 }
 
-class _HomePageState extends State<HomePage> {
-  List<Bucket> bucketList = []; // 전체 버킷리스트 목록
+class _MiliState extends State<Mili> {
+  int currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("버킷 리스트"),
+        title: Center(child: Text("Mili Mili")),
       ),
-      body: bucketList.isEmpty
-          ? Center(child: Text("버킷 리스트를 작성해 주세요."))
-          : ListView.builder(
-              itemCount: bucketList.length, // bucketList 개수 만큼 보여주기
-              itemBuilder: (context, index) {
-                Bucket bucket = bucketList[index]; // index에 해당하는 bucket 가져오기
-                return ListTile(
-                  // 버킷 리스트 할 일
-                  title: Text(
-                    bucket.job,
-                    style: TextStyle(
-                      fontSize: 24,
-                      color: bucket.isDone ? Colors.grey : Colors.black,
-                      decoration: bucket.isDone
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                    ),
-                  ),
-                  // 삭제 아이콘 버튼
-                  trailing: IconButton(
-                    icon: Icon(CupertinoIcons.delete),
-                    onPressed: () {
-                      // 삭제 버튼 클릭시
-                      showDeleteDialog(context, index);
-                    },
-                  ),
-                  onTap: () {
-                    // 아이템 클릭시
-                    setState(() {
-                      bucket.isDone = !bucket.isDone;
-                    });
-                  },
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
-        onPressed: () async {
-          // + 버튼 클릭시 버킷 생성 페이지로 이동
-          String? job = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => CreatePage()),
-          );
-          if (job != null) {
-            setState(() {
-              Bucket newBucket = Bucket(job, false);
-              bucketList.add(newBucket); // 버킷 리스트에 추가
-            });
-          }
+      body: IndexedStack(
+        index: currentIndex, // index 순서에 해당하는 child를 맨 위에 보여줌
+        children: [
+          MiliHomePage(),
+          MiliWeeklyPage(),
+          MiliDailyPage(),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: currentIndex, // 현재 보여주는 탭
+        onTap: (newIndex) {
+          print("selected newIndex : $newIndex");
+          // 다른 페이지로 이동
+          setState(() {
+            currentIndex = newIndex;
+          });
         },
-      ),
-    );
-  }
-
-  void showDeleteDialog(BuildContext context, int index) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("정말로 삭제하시겠습니까?"),
-          actions: [
-            // 취소 버튼
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text("취소"),
-            ),
-            // 확인 버튼
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  // 삭제
-                  bucketList.removeAt(index);
-                });
-                Navigator.pop(context);
-              },
-              child: Text(
-                "확인",
-                style: TextStyle(color: Colors.pink),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// 버킷 생성 페이지
-class CreatePage extends StatefulWidget {
-  const CreatePage({Key? key}) : super(key: key);
-
-  @override
-  State<CreatePage> createState() => _CreatePageState();
-}
-
-class _CreatePageState extends State<CreatePage> {
-  // TextField의 값을 가져올 때 사용합니다.
-  TextEditingController textController = TextEditingController();
-
-  // 경고 메세지
-  String? error;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("버킷리스트 작성"),
-        // 뒤로가기 버튼
-        leading: IconButton(
-          icon: Icon(CupertinoIcons.chevron_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // 텍스트 입력창
-            TextField(
-              controller: textController, // 연결해 줍니다.
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: "하고 싶은 일을 입력하세요",
-                errorText: error,
-              ),
-            ),
-            SizedBox(height: 32),
-            // 추가하기 버튼
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                child: Text(
-                  "추가하기",
-                  style: TextStyle(
-                    fontSize: 18,
-                  ),
-                ),
-                onPressed: () {
-                  // 추가하기 버튼 클릭시
-                  String job = textController.text; // 값 가져오기
-                  if (job.isEmpty) {
-                    setState(() {
-                      error = "내용을 입력해주세요."; // 내용이 없는 경우 에러 메세지
-                    });
-                  } else {
-                    setState(() {
-                      error = null; // 내용이 있는 경우 에러 메세지 숨기기
-                    });
-                    Navigator.pop(context, job); // job 변수를 반환하며 화면을 종료합니다.
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
+        selectedItemColor: miliPrimaryColor, // 선택된 아이콘 색상
+        unselectedItemColor: Colors.grey, // 선택되지 않은 아이콘 색상
+        showSelectedLabels: false, // 선택된 항목 label 숨기기
+        showUnselectedLabels: false, // 선택되지 않은 항목 label 숨기기
+        type: BottomNavigationBarType.fixed, // 선택시 아이콘 움직이지 않기
+        backgroundColor: Colors.white,
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: ""),
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: ""),
+          BottomNavigationBarItem(icon: Icon(Icons.check_box), label: ""),
+        ],
       ),
     );
   }
